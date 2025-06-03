@@ -10,7 +10,7 @@ from utils.db_api.users_commands import count_users
 
 async def on_startup_notufy(dp: Dispatcher):
     try:
-        text = 'Бот запущен /run'
+        text = 'Бот запущен'
         await dp.bot.send_message(chat_id=CODER, text=text)
     except Exception as err:
         logging.exception(err)

@@ -142,8 +142,9 @@ async def get_user_data(user_id):
                 'user_id': user.user_id,
                 'login': user.email,
                 'password': user.password,
+                'token': user.token,
             }
-            return [user_data]
+            return user_data
         else:
             logger.warning(f'Пользователь с user_id {user_id} не найден или неактивен.')
             return None

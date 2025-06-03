@@ -1,172 +1,99 @@
-import requests
 import asyncio
-from bs4 import BeautifulSoup
+import aiohttp
+from datetime import datetime
 from loguru import logger
 
-from data.config import CODER
-from filters.admins import Admins
-from utils.db_api.ie_commands import change_last_time, get_last_time
-from datetime import datetime
-from loader import bot
-from fake_useragent import UserAgent
-
+from data.config import CODER, ADMIN_IE
+from utils.db_api.ie_commands import change_last_time, get_last_time, get_user_data
 from utils.db_api.users_commands import get_user_id_by_card_number, update_bonus
+from loader import bot
+
+API_URL = "https://api.vendista.ru:99/bonusaccounts"
 
 
-async def current_time_formatted():
-    current_time = datetime.now()
-    formatted_time = current_time.strftime("%d.%m.%Y %H:%M:%S")
-    return formatted_time
+def format_now() -> str:
+    """Текущее время в формате строки."""
+    return datetime.now().strftime("%d.%m.%Y %H:%M:%S")
 
 
-async def compare_dates(date_str_pars, date_str_bd):
-    # Преобразование строк в объекты datetime
-    date_str_pars = datetime.strptime(date_str_pars, '%d.%m.%Y %H:%M:%S')
-    date_str_bd = datetime.strptime(date_str_bd, '%d.%m.%Y %H:%M:%S')
-
-    # Сравнение дат
-    if date_str_pars > date_str_bd:
-        return True
-    else:
-        return False
+async def parse_iso_datetime(iso_str: str) -> str:
+    """Преобразует ISO-время из API в формат DD.MM.YYYY HH:MM:SS"""
+    dt = datetime.fromisoformat(iso_str)
+    return dt.strftime("%d.%m.%Y %H:%M:%S")
 
 
-async def parse_amount_string(amount_str):
-    try:
-        # Удаляем два последних символа и заменяем запятую на точку
-        amount_str_cleaned = amount_str.replace("\xa0", "").replace(" ", "")[:-2].replace(",", ".")
-        # Преобразуем строку в тип float
-        amount_float = float(amount_str_cleaned)
-        return amount_float
-    except ValueError:
-        # Если возникла ошибка при преобразовании, например, из-за неправильного формата строки
-        return None
+async def should_update(sale_time: str, db_time: str) -> bool:
+    """Сравнивает время продажи и последнее сохранённое время."""
+    t1 = datetime.strptime(sale_time, '%d.%m.%Y %H:%M:%S')
+    t2 = datetime.strptime(db_time, '%d.%m.%Y %H:%M:%S')
+    return t1 > t2
 
 
-stop_flag = False  # Глобальная переменная для управления циклом
+async def format_bonus(bonus: int) -> str:
+    """Форматирует бонусы в строку с пробелами и запятой."""
+    return f"{bonus / 100:,.2f}".replace(",", " ").replace(".", ",")
 
 
-class AsyncLoginSessionManager:
-    instance = None  # Статическое поле для хранения экземпляра
+class BonusUpdater:
+    def __init__(self, token: str):
+        self.token = token
 
-    def __init__(self, login_url='https://p.vendista.ru/Auth/Login'):
-        self.login_url = login_url
-        self.session = None  # Инициализировать сеанс как Нет
-        self.user_agent = UserAgent()
+    async def fetch_data(self) -> list[dict]:
+        """Получает бонусные данные из API."""
+        async with aiohttp.ClientSession() as session:
+            params = {
+                "token": self.token,
+                "OrderByColumn": 3,
+                "OrderDesc": 'true'
+            }
+            async with session.get(API_URL, params=params) as resp:
+                if resp.status == 200:
+                    return (await resp.json())["items"]
+                logger.error(f"API request failed with status {resp.status}")
+                return []
 
-    async def __aenter__(self):
-        self.session = requests.Session()
-        return self
+    async def process_user_data(self, user_data: dict):
+        user_id = user_data["user_id"]
 
-    async def __aexit__(self, exc_type, exc, tb):
-        self.session.close()
 
-    async def login(self, login, password):
-        response = self.session.get(self.login_url)
-        html = response.text
-
-        soup = BeautifulSoup(html, 'html.parser')
-        verification_token = soup.find('input', {'name': '__RequestVerificationToken'}).get('value')
-
-        auth_url = 'https://p.vendista.ru/Auth/Login'
-        login_data = {
-            '__RequestVerificationToken': verification_token,
-            'returnUrl': '',
-            'Login': login,
-            'Password': password,
-        }
-
-        response = self.session.post(auth_url, data=login_data, headers={'User-Agent': self.user_agent.random})
-        if response.ok:
-            return True
-        else:
-            logger.error('Authentication failed!')
-            await bot.send_message(chat_id=CODER, text=f'Authentication failed! /run')
-            return False
-
-    async def get_bonuses_data(self, user_data):
-        user_id = user_data['user_id']
         try:
-            while not stop_flag:  # Проверяйте флаг перед каждой итерацией
-                unique_card_numbers = set()
-                for page_number in range(1, 2):
-                    bonuses_url_page = f'https://p.vendista.ru/Bonuses?OrderByColumn=3&OrderDesc=True&PageNumber={page_number}&ItemsOnPage=200&FilterText='
+            while True:
+                now_str = format_now()
+                last_check = await get_last_time(user_id)
+                # last_check = "02.06.2025 00:38:33"
 
-                    response_bonuses = self.session.get(bonuses_url_page, headers={'User-Agent': self.user_agent.random})
-                    html_bonuses_page = response_bonuses.text
-                    # текущее время
-                    date_str_now = str(await current_time_formatted())
-                    soup_bonuses_page = BeautifulSoup(html_bonuses_page, 'html.parser')
-                    rows = soup_bonuses_page.select('.catalog__body .row')
+                items = await self.fetch_data()
 
-                    # время из БД последнего запроса
-                    date_str_bd = await get_last_time(int(user_id))
-                    date_str_bd = '02.06.2025 06:00:00'
-                    counter = 0
-                    for row in rows:
-                        if counter >= 50:
-                            break
-                        columns = row.select('.catalog__table_td')
-                        if columns:
-                            card_number = columns[1].text.strip()
-                            bonus_balance = columns[3].text.strip()
-                            sale_time = columns[4].text.strip()
-                            unique_card_numbers.add(card_number)
-                            counter += 1
-                            # сравниваем время последнего обновления со временем последней покупки
-                            if await compare_dates(sale_time, date_str_bd):
+                for item in items:
+                    card_number = item["card_number"]
+                    balance = item["balance"]
+                    sale_time_raw = item["last_change_time"]
 
-                                # смотрим у какого пользователя совпадает номер карты
-                                user = await get_user_id_by_card_number(card_number)
-                                if user:
-                                    bonuses = f'бонусы 💳{card_number}: {bonus_balance}'
-                                    # отправляем сообщение пользователю
-                                    # await bot.send_message(user, bonuses)
-                                    print(user, bonuses)
-                                    # отправляем админу
-                                    # await bot.send_message(chat_id=CODER, text=f'{user}\n{sale_time}\n{bonuses}')
-                                    # сохраняем количество бонусов в БД
-                                    bonus = await parse_amount_string(bonus_balance)
-                                    await update_bonus(user, bonus)
-                    # сохраняем текущее время в БД
-                    await change_last_time(user_id, date_str_now)
+                    sale_time = await parse_iso_datetime(sale_time_raw)
+
+                    if await should_update(sale_time, last_check):
+                        user = await get_user_id_by_card_number(card_number)
+                        if user:
+                            await update_bonus(user, balance / 100)
+                            bonus = await format_bonus(balance)
+                            msg = f"💳 Карта: {card_number}\nБонусы: {bonus} ₽"
+                            print(msg)
+                            # await bot.send_message(user, msg)
+                            await bot.send_message(CODER, f"{user}\n{msg}")
+
+                await change_last_time(user_id, now_str)
                 await asyncio.sleep(30)
-        except Exception as e:
-            logger.error(f'Ошибка извлечения бонусных данных!', e)
-            await asyncio.sleep(60)
-            date_str_now = str(await current_time_formatted())
-            # сохраняем текущее время в БД
-            await change_last_time(user_id, date_str_now)
-            await bot.send_message(chat_id=CODER, text=f'Ошибка извлечения бонусных данных /run!')
 
-    @classmethod
-    def get_instance(cls):
-        if not cls.instance:
-            cls.instance = cls()
-        return cls.instance
+        except Exception:
+            logger.exception("Ошибка при обновлении бонусных данных")
+            await change_last_time(user_id, format_now())
+            await bot.send_message(CODER, "❌ Ошибка извлечения бонусных данных")
 
 
-async def stop_processing():
-    global stop_flag
-    stop_flag = True  # Установите флаг, чтобы остановить обработку
-
-
-async def start_processing():
-    global stop_flag
-    stop_flag = False  # Установите флаг, чтобы начать обработку
-
-
-async def process_user(user_data):
-    async with AsyncLoginSessionManager() as async_session_manager:
-        try:
-            if await async_session_manager.login(user_data['login'], user_data['password']):
-                await async_session_manager.get_bonuses_data(user_data)
-        except asyncio.CancelledError:
-            pass  # При необходимости обработайте исключение отмены.
-
-        await stop_processing()  # Остановить обработку после выполнения задачи
-
-
-async def parsing_main(users_data):
-    tasks = [process_user(user_data) for user_data in users_data]
-    await asyncio.gather(*tasks)
+async def start_user():
+    user_data = await get_user_data(ADMIN_IE)
+    updater = BonusUpdater(token=user_data["token"])
+    try:
+        await updater.process_user_data(user_data)
+    except asyncio.CancelledError:
+        pass  # Обработка отмены
