@@ -1,0 +1,15 @@
+# For puhon 3.9
+python-dotenv~=1.0.0
+beautifulsoup4~=4.12.2
+aiohttp~=3.8.6
+requests~=2.31.0
+aiogram~=2.21
+loguru~=0.6.0
+SQLAlchemy~=1.3.24
+asyncpg~=0.26.0
+aiocron~=1.8
+pyQiwiP2P~=2.0.6
+fake-useragent~=1.2.1
+gino~=1.0.1
+typing~=3.7.4.3
+qrcode~=7.4.2
