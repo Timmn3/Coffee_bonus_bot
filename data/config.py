@@ -25,3 +25,15 @@ QIWI_TOKEN = os.getenv('QIWI')
 WALLET_QIWI = os.getenv('WALLET')
 QIWI_PUB_KEY = os.getenv('QIWI_PUB_KEY')
 QIWI_PRIV_KEY = os.getenv('QIWI_PRIV_KEY')
+
+
+# Время напоминания
+REMINDER_DAY = os.getenv('REMINDER_DAY', '2')
+REMINDER_HOUR = os.getenv('REMINDER_HOUR', '12')
+REMINDER_MINUTE = os.getenv('REMINDER_MINUTE', '0')
+
+# Флаг необходимости уведомления
+SEND_PAYMENT_REMINDER = os.getenv('SEND_PAYMENT_REMINDER', 'True').lower() in ('true', '1', 'yes')
+
+# Номер карты для абонплаты
+PAYMENT_CARD = os.getenv('PAYMENT_CARD')

@@ -13,3 +13,4 @@ fake-useragent~=1.2.1
 gino~=1.0.1
 typing~=3.7.4.3
 qrcode~=7.4.2
+apscheduler~=3.11

@@ -1,6 +1,8 @@
 import asyncio
-
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from custom_parser.pars import start_user
+from data.config import REMINDER_DAY, REMINDER_HOUR, REMINDER_MINUTE, SEND_PAYMENT_REMINDER
+from utils.notify_admins import send_monthly_payment_reminder
 
 
 async def on_startup(dp):
@@ -39,9 +41,31 @@ async def on_startup(dp):
     # выдает в консоль бот запущен
     logger.info("Бот запущен")
     asyncio.create_task(start_user())
-    # Создаем задачу, которая будет выполняться каждый день в 00:00
-    # перезапуск бота
-    # aiocron.crontab('1 0 * * *', func=restart_parser, start=True)  # в 00:01
+
+    # Инициализация APScheduler
+    scheduler = AsyncIOScheduler()
+    scheduler.start()
+
+    # Ежемесячная задача:
+    # Проверяем, нужно ли отправлять уведомления
+    if SEND_PAYMENT_REMINDER:
+        scheduler = AsyncIOScheduler()
+        scheduler.start()
+
+        scheduler.add_job(
+            send_monthly_payment_reminder,
+            trigger='cron',
+            day=int(REMINDER_DAY),
+            hour=int(REMINDER_HOUR),
+            minute=int(REMINDER_MINUTE),
+            misfire_grace_time=60,
+            coalesce=True,
+            max_instances=1
+        )
+        logger.info(f"Ежемесячное уведомление запланировано: {REMINDER_DAY} числа в {REMINDER_HOUR}:{REMINDER_MINUTE}")
+    else:
+        logger.info("Ежемесячное уведомление отключено через SEND_PAYMENT_REMINDER=False")
+
 
 if __name__ == '__main__':
     from aiogram import executor  # импортируем executor для запуска поллинга
