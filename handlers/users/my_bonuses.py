@@ -9,10 +9,8 @@ from keyboards.inline.ikb_cards import get_card_selection_keyboard
 @dp.message_handler(text="/my_bonuses")
 async def my_bonuses(message: types.Message):
     user_id = message.from_user.id
-    bonus = await get_bonus(user_id)
-
     card_numbers = await get_card_number_by_user_id(user_id)
-
+    bonus = await get_bonus(user_id, card_numbers)
     if not card_numbers or card_numbers == '0':
         await message.answer('У вас нет зарегистрированных карт.')
         return

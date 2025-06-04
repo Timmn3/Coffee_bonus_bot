@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-env_path = os.getenv("ENV_PATH", ".env.kofelevs")
+env_path = os.getenv("ENV_PATH", ".env")
 load_dotenv(dotenv_path=env_path)
 
 
