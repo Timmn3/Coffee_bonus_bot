@@ -1,8 +1,17 @@
+import os
+from dotenv import load_dotenv
+
+env_path = os.getenv("ENV_PATH", ".env.tochka")
+load_dotenv(dotenv_path=env_path)
+
+
+
 import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from custom_parser.pars import start_user
 from data.config import REMINDER_DAY, REMINDER_HOUR, REMINDER_MINUTE, SEND_PAYMENT_REMINDER
 from utils.notify_admins import send_monthly_payment_reminder
+
 
 
 async def on_startup(dp):

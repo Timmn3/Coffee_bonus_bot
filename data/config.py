@@ -1,10 +1,5 @@
 import os
 
-from dotenv import load_dotenv
-
-# запускаем функцию, которая загружает переменное окружение из файла .env
-load_dotenv()
-
 # Токен бота
 BOT_TOKEN = str(os.getenv('BOT_TOKEN'))
 TABLE_NAME = str(os.getenv('TABLE_NAME'))
