@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, sql, Float, Boolean
+from sqlalchemy import Column, BigInteger, String, sql, Float, Boolean, JSON
 
 from data.config import TABLE_NAME
 from utils.db_api.db_gino import TimedBaseModel
@@ -13,7 +13,7 @@ class Users(TimedBaseModel):
     card_number = Column(String(50))
     phone_number = Column(String(50))
     status = Column(String(25))
-    bonus = Column(Float)
+    bonus = Column(JSON)
     number_ie = Column(BigInteger)
     sms_status = Column(Boolean)
 

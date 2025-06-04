@@ -1,3 +1,5 @@
+import asyncio
+
 from custom_parser.pars import start_user
 
 
@@ -36,7 +38,7 @@ async def on_startup(dp):
 
     # выдает в консоль бот запущен
     logger.info("Бот запущен")
-    await start_user()
+    asyncio.create_task(start_user())
     # Создаем задачу, которая будет выполняться каждый день в 00:00
     # перезапуск бота
     # aiocron.crontab('1 0 * * *', func=restart_parser, start=True)  # в 00:01

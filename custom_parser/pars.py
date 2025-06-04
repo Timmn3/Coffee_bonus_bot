@@ -74,12 +74,12 @@ class BonusUpdater:
                     if await should_update(sale_time, last_check):
                         user = await get_user_id_by_card_number(card_number)
                         if user:
-                            await update_bonus(user, balance / 100)
+                            await update_bonus(user, card_number, balance / 100)
                             bonus = await format_bonus(balance)
                             msg = f"💳 Карта: {card_number}\nБонусы: {bonus} ₽"
-                            print(msg)
-                            # await bot.send_message(user, msg)
-                            await bot.send_message(CODER, f"{user}\n{msg}")
+                            # print(msg)
+                            await bot.send_message(user, msg)
+                            # await bot.send_message(CODER, f"{user}\n{msg}")
 
                 await change_last_time(user_id, now_str)
                 await asyncio.sleep(30)

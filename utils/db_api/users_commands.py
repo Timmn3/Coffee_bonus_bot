@@ -163,36 +163,50 @@ async def get_user_id_by_card_number(card: str):
         return None  # or raise an exception if you prefer
 
 
-async def update_bonus(user_id: int, new_bonus: float):
-    """ Изменить значение бонусов пользователя """
+async def update_bonus(user_id: int, card_number: str, new_bonus: float):
+    """ Обновить бонусы по конкретной карте """
     try:
-        # Проверяем, существует ли пользователь
         user = await Users.query.where(Users.user_id == user_id).gino.first()
-        if user:
-            # Если пользователь существует, обновляем значение бонусов
-            await Users.update.values(bonus=new_bonus).where(Users.user_id == user_id).gino.status()
-        else:
-            logger.warning(f"Пользователь с ID {user_id} не найден. Невозможно обновить значение бонусов.")
+        if not user:
+            logger.warning(f"Пользователь с ID {user_id} не найден.")
+            return
+
+        # Если бонусов еще нет, создаём новый словарь
+        bonuses = user.bonus or {}
+
+        # Обновляем бонус по карте
+        bonuses[card_number] = float(new_bonus)
+
+        # Сохраняем обратно в БД
+        await user.update(bonus=bonuses).apply()
+
     except Exception as e:
-        logger.exception(f'Ошибка при изменении значения бонусов пользователя: {e}')
+        logger.exception(f'Ошибка при обновлении бонусов пользователя: {e}')
 
 
-async def get_bonus(user_id: int):
-    """ Получить значение бонусов пользователя """
+async def get_bonus(user_id: int, card_number: str = None):
+    """ Получить значение бонусов пользователя или по конкретной карте """
     try:
-        # Выбираем пользователя
         user = await Users.query.where(Users.user_id == user_id).gino.first()
+        if not user:
+            logger.warning(f"Пользователь с ID {user_id} не найден.")
+            return 0.0
 
-        # Проверяем, существует ли пользователь
-        if user:
-            # Возвращаем значение бонусов
-            return user.bonus
+        if not user.bonus:
+            return 0.0
+
+        if isinstance(user.bonus, dict):
+            if card_number:
+                return float(user.bonus.get(card_number, 0.0))
+            else:
+                return float(sum(user.bonus.values()))
         else:
-            logger.warning(f"Пользователь с ID {user_id} не найден. Невозможно получить значение бонусов.")
-            return None  # or raise an exception if you prefer
+            # Резервный случай, если данные хранятся как строка
+            return 0.0
+
     except Exception as e:
         logger.exception(f'Ошибка при получении значения бонусов пользователя: {e}')
-        return None  # or raise an exception if you prefer
+        return 0.0
 
 
 async def count_users():
