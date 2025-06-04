@@ -55,3 +55,8 @@ async def process_callback_card(callback_query: types.CallbackQuery):
 
     await callback_query.message.edit_text(text, parse_mode='HTML')
     await callback_query.answer()
+
+@dp.message_handler(text="Мои бонусы")
+async def handle_bonuses_button(message: types.Message):
+    await my_bonuses(message)
+

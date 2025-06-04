@@ -3,6 +3,8 @@ import re
 from aiogram import types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Command
+
+from keyboards.default import kb_main
 from keyboards.default.keyboard_sms import kb_sms_cancel
 from loader import dp
 from utils.db_api.ie_commands import get_sms_status_ie
@@ -30,7 +32,7 @@ kb_cancel = ReplyKeyboardMarkup(
 @dp.message_handler(text='Отмена')
 async def cast(message: types.Message, state: FSMContext):
     await state.finish()
-    await message.answer('Отменено')
+    await message.answer('Отменено', reply_markup=kb_main)
 
 
 @dp.message_handler(Command('sms_notifications'))
@@ -61,7 +63,7 @@ async def get_phone(message: types.Message, state: FSMContext):
     phone = message.text
     if phone == 'Отмена':
         await state.finish()
-        await message.answer('Отменено')
+        await message.answer('Отменено', reply_markup=kb_main)
     else:
         user_id = int(message.from_user.id)
         if validate_phone(phone):

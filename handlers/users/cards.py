@@ -2,6 +2,8 @@
 import html
 import re
 from aiogram import types
+
+from keyboards.default import kb_main
 from loader import dp
 from utils.db_api.users_commands import get_card_number_by_user_id, update_card_number, remove_card_number
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
@@ -53,7 +55,7 @@ cards_cancel = ReplyKeyboardMarkup(
 @dp.message_handler(text='Oтмена')
 async def cast(message: types.Message, state: FSMContext):
     await state.finish()
-    await message.answer('Отменено')
+    await message.answer('Отменено', reply_markup=kb_main)
 
 
 @dp.message_handler(text='/cards')
@@ -176,7 +178,7 @@ async def get_number(message: types.Message, state: FSMContext):
     number = message.text
     if number == "Oтмена":
         await state.finish()
-        await message.answer('Отменено')
+        await message.answer('Отменено', reply_markup=kb_main)
     else:
         user_id = int(message.from_user.id)
 
@@ -247,7 +249,7 @@ async def number_delete(message: types.Message, state: FSMContext):
     number = message.text
     if number == "Oтмена":
         await state.finish()
-        await message.answer('Отменено')
+        await message.answer('Отменено', reply_markup=kb_main)
     else:
         user_id = int(message.from_user.id)
 
@@ -259,3 +261,8 @@ async def number_delete(message: types.Message, state: FSMContext):
 
         else:
             await message.answer('Некорректный ввод. Пример: 22****7192:', reply_markup=cards_cancel)
+
+
+@dp.message_handler(text="Ваши карты")
+async def handle_cards_button(message: types.Message):
+    await cards_change(message)

@@ -3,7 +3,7 @@
 import re
 from aiogram import types
 from aiogram.dispatcher import FSMContext
-from keyboards.default import cancel_registration, kb_sms
+from keyboards.default import cancel_registration, kb_sms, kb_main
 from loader import dp
 from states import Registration
 from utils.db_api.ie_commands import get_sms_status_ie
@@ -15,7 +15,7 @@ from utils.notify_admins import new_user_registration
 @dp.message_handler(text='Отменить регистрацию')
 async def cast(message: types.Message, state: FSMContext):
     await state.finish()
-    await message.answer('Отменено')
+    await message.answer('Отменено', reply_markup=kb_main)
 
 
 @dp.message_handler(text=['Регистрация', '/register'])
@@ -37,7 +37,7 @@ async def get_number(message: types.Message, state: FSMContext):
     number = message.text
     if number == "Отменить регистрацию":
         await state.finish()
-        await message.answer('Отменено')
+        await message.answer('Отменено', reply_markup=kb_main)
     else:
         user_id = int(message.from_user.id)
 
@@ -97,7 +97,7 @@ async def get_phone(message: types.Message, state: FSMContext):
     phone = message.text
     if phone == "Отменить регистрацию":
         await state.finish()
-        await message.answer('Отменено')
+        await message.answer('Отменено', reply_markup=kb_main)
     else:
         user_id = int(message.from_user.id)
         if validate_phone(phone):

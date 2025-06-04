@@ -6,3 +6,4 @@ from .keyboard_run_stop import kb_run_stop
 from .keyboard_user_data import kb_user_data
 from .keyboard_restart import kb_restart
 from .keyboard_sms import kb_sms
+from .keyboard_main import kb_main

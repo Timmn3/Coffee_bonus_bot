@@ -3,6 +3,7 @@ from aiogram import types
 
 async def set_default_commands(dp):
     await dp.bot.set_my_commands([
+        types.BotCommand('start', 'Старт'),
         types.BotCommand('my_bonuses', 'Мои бонусы'),
         types.BotCommand('register', 'Регистрация'),
         types.BotCommand('cards', 'Ваши карты'),
