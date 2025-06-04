@@ -1,6 +1,8 @@
 from aiogram import types
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
 from loader import dp
-from utils.db_api.users_commands import get_bonus, get_card_number_by_user_id
+from utils.db_api.users_commands import get_bonus, get_card_number_by_user_id, get_name_cards
 from keyboards.inline.ikb_cards import get_card_selection_keyboard
 
 
@@ -19,7 +21,14 @@ async def my_bonuses(message: types.Message):
     card_list = [card.strip() for card in card_numbers.split('\n') if card.strip()]
 
     if len(card_list) > 1:
-        keyboard = get_card_selection_keyboard(card_list)
+        name_cards = await get_name_cards(user_id)
+
+        keyboard = InlineKeyboardMarkup(row_width=1)
+        for card in card_list:
+            name = name_cards.get(card, '—')
+            button_text = f"{card} — {name}"
+            keyboard.add(InlineKeyboardButton(text=button_text, callback_data=f"card:{card}"))
+
         await message.answer("Выберите карту для просмотра бонусов:", reply_markup=keyboard)
     else:
         if bonus:

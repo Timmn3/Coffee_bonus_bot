@@ -42,29 +42,42 @@ async def get_number(message: types.Message, state: FSMContext):
         user_id = int(message.from_user.id)
 
         if validate_number(number):
-            # сохраняем номер карты в БД
-            await update_card_number(user_id, number)
-            await state.finish()
-
-            user_id_ie = await get_number_ie(message.from_user.id)
-            # смотрим подключена ли СМС уведомление в кофейне
-            if await get_sms_status_ie(user_id_ie):
-                await message.answer('👍Отлично!')
-                await message.answer('Хотите получать СМС уведомления?', reply_markup=kb_sms)
-            else:
-                await message.answer(
-                    '👍Отлично! Регистрация завершена, теперь вы будете получать уведомления о балансе '
-                    'бонусов в telegram боте!📲\n'
-                    f'<b>1 бонус = 1 рублю!</b>\n'
-                    f'Вы можете выбрать напиток и приложить карту как обычно к терминалу!\n'
-                    f'При достаточном наличии бонусов деньги не списываются и у Вас будет написано '
-                    f'<b>"бесплатная продажа"!</b>'
-                )
-                # отправляем админам нового пользователя
-                await new_user_registration(dp=dp, username=message.from_user.username)
-
+            await state.update_data(card_number=number)  # сохраняем номер во временное состояние
+            await message.answer("Введите имя для этой карты (например: 'Рабочая', 'Личная', 'Кофейный автомат у входа'):")
+            await Registration.name.set()
         else:
             await message.answer('Некорректный ввод. Пример: 22****7192:', reply_markup=cancel_registration)
+
+@dp.message_handler(state=Registration.name)
+async def get_card_name(message: types.Message, state: FSMContext):
+    user_id = int(message.from_user.id)
+    name = message.text.strip()
+    data = await state.get_data()
+    number = data.get("card_number")
+
+    if validate_number(number):
+        from utils.db_api.users_commands import update_card_number, set_card_name
+
+        await update_card_number(user_id, number)
+        await set_card_name(user_id, number, name)
+
+        await state.finish()
+
+        user_id_ie = await get_number_ie(message.from_user.id)
+        if await get_sms_status_ie(user_id_ie):
+            await message.answer('👍Отлично! Хотите получать СМС уведомления?', reply_markup=kb_sms)
+        else:
+            await message.answer(
+                '👍Отлично! Регистрация завершена, теперь вы будете получать уведомления о балансе бонусов в Telegram боте!📲\n'
+                f'<b>1 бонус = 1 рублю!</b>\nВы можете выбрать напиток и приложить карту как обычно к терминалу!\n'
+                f'При достаточном наличии бонусов деньги не списываются и у Вас будет написано <b>"бесплатная продажа"!</b>'
+            )
+            await new_user_registration(dp=dp, username=message.from_user.username)
+
+    else:
+        await message.answer('Ошибка: номер карты недействителен, попробуйте снова с /register')
+        await state.finish()
+
 
 
 def validate_number(number):

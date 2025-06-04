@@ -185,7 +185,6 @@ async def update_bonus(user_id: int, card_number: str, new_bonus: float):
 
 
 async def get_bonus(user_id: int, card_number: str = None):
-    """ Получить значение бонусов пользователя или по конкретной карте """
     try:
         user = await Users.query.where(Users.user_id == user_id).gino.first()
         if not user:
@@ -193,15 +192,19 @@ async def get_bonus(user_id: int, card_number: str = None):
             return 0.0
 
         if not user.bonus:
+            if card_number:
+                return await get_bonus_api(card_number)
             return 0.0
 
         if isinstance(user.bonus, dict):
             if card_number:
-                return float(user.bonus.get(card_number, 0.0))
+                bonus = float(user.bonus.get(card_number, 0.0))
+                if bonus == 0.0:
+                    return await get_bonus_api(card_number)
+                return bonus
             else:
                 return float(sum(user.bonus.values()))
         else:
-            # Резервный случай, если данные хранятся как строка
             return 0.0
 
     except Exception as e:
@@ -267,3 +270,75 @@ async def remove_card_number(user_id: int, partial_card_number: str):
     except Exception as e:
         logger.exception(f'Ошибка при удалении частичного номера карты: {e}')
         return f'Ошибка при удалении частичного номера карты: {e}'
+
+# Получить словарь name_cards
+async def get_name_cards(user_id: int):
+    user = await select_user(user_id)
+    return user.name_cards or {}
+
+# Добавить или обновить имя карты
+async def set_card_name(user_id: int, card_number: str, name: str):
+    user = await select_user(user_id)
+    name_cards = user.name_cards or {}
+    name_cards[card_number] = name
+    await user.update(name_cards=name_cards).apply()
+
+# Удалить карту из name_cards
+async def remove_card_name(user_id: int, card_number: str):
+    user = await select_user(user_id)
+    name_cards = user.name_cards or {}
+    if card_number in name_cards:
+        del name_cards[card_number]
+        await user.update(name_cards=name_cards).apply()
+
+# Переименовать карту (или номер) в name_cards
+async def rename_card_number(user_id: int, old_card_number: str, new_card_number: str):
+    user = await select_user(user_id)
+    name_cards = user.name_cards or {}
+
+    if old_card_number in name_cards:
+        name = name_cards.pop(old_card_number)
+        name_cards[new_card_number] = name
+        await user.update(name_cards=name_cards).apply()
+
+
+import requests
+from data.config import ADMIN_IE
+from utils.db_api.ie_commands import get_user_data
+
+async def get_bonus_api(card_number: str) -> float:
+    try:
+        user_data = await get_user_data(ADMIN_IE)
+        token = user_data.get("token")
+        if not token:
+            logger.warning("API токен не получен.")
+            return 0.0
+
+        resp = requests.get(
+            "https://api.vendista.ru:99/bonusaccounts",
+            params={
+                "token": token,
+                "OrderByColumn": 3,
+                "OrderDesc": True,
+                "FilterText": card_number
+            }
+        )
+
+        data = resp.json()
+        if data.get('success') and data['items']:
+            balance_kopecks = data['items'][0]['balance']
+            balance_rub = balance_kopecks / 100
+
+            # 🔄 Сохраняем в БД
+            user_id = await get_user_id_by_card_number(card_number)
+            if user_id:
+                await update_bonus(user_id, card_number, balance_rub)
+
+            return balance_rub
+        else:
+            logger.warning(f"API вернул ошибку для карты {card_number}: {data}")
+            return 0.0
+    except Exception as e:
+        logger.exception(f"Ошибка при запросе бонусов через API для {card_number}: {e}")
+        return 0.0
+
