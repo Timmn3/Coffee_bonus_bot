@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-env_path = os.getenv("ENV_PATH", ".env.tochka")
+env_path = os.getenv("ENV_PATH", ".env.kofelevs")
 load_dotenv(dotenv_path=env_path)
 
 
@@ -81,3 +81,5 @@ if __name__ == '__main__':
     from handlers import dp  # из хендлеров импортируем dp
 
     executor.start_polling(dp, on_startup=on_startup)
+
+    # git push origin master
