@@ -70,7 +70,7 @@ async def cards_change(message: types.Message):
         lines = []
         for card in cards.split('\n'):
             if card.strip():
-                name = names.get(card.strip(), '—')
+                name = names.get(card.strip(), 'Имя карты')
                 lines.append(f"{card.strip()} — <i>{name}</i>")
         text = "<b>Ваши карты:</b>\n" + "\n".join(lines)
 
