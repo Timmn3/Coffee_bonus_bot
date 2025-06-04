@@ -276,6 +276,11 @@ async def get_name_cards(user_id: int):
     user = await select_user(user_id)
     return user.name_cards or {}
 
+# Получить имя карты по номеру
+async def get_card_name(user_id: int, card_number: str) -> str:
+    name_cards = await get_name_cards(user_id)
+    return name_cards.get(card_number, "Карта")
+
 # Добавить или обновить имя карты
 async def set_card_name(user_id: int, card_number: str, name: str):
     user = await select_user(user_id)
@@ -320,7 +325,7 @@ async def get_bonus_api(card_number: str) -> float:
                 "token": token,
                 "OrderByColumn": 3,
                 "OrderDesc": True,
-                "FilterText": card_number
+                "FilterText": card_number.strip()
             }
         )
 

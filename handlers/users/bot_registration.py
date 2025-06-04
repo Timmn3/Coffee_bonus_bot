@@ -49,7 +49,7 @@ async def get_number(message: types.Message, state: FSMContext):
             await message.answer('Некорректный ввод. Пример: 22****7192:', reply_markup=cancel_registration)
 
 @dp.message_handler(state=Registration.name)
-async def get_card_name(message: types.Message, state: FSMContext):
+async def get_card_name_reg(message: types.Message, state: FSMContext):
     user_id = int(message.from_user.id)
     name = message.text.strip()
     data = await state.get_data()

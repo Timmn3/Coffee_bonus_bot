@@ -5,7 +5,7 @@ from loguru import logger
 
 from data.config import CODER, ADMIN_IE
 from utils.db_api.ie_commands import change_last_time, get_last_time, get_user_data
-from utils.db_api.users_commands import get_user_id_by_card_number, update_bonus
+from utils.db_api.users_commands import get_user_id_by_card_number, update_bonus, get_card_name
 from loader import bot
 
 API_URL = "https://api.vendista.ru:99/bonusaccounts"
@@ -76,8 +76,8 @@ class BonusUpdater:
                         if user:
                             await update_bonus(user, card_number, balance / 100)
                             bonus = await format_bonus(balance)
-                            msg = f"💳 Карта: {card_number}\nБонусы: {bonus} ₽"
-                            # print(msg)
+                            card_name = await get_card_name(user, card_number)
+                            msg = f"💳 <b>{card_name}</b> — {card_number}\n💰 Бонусы: {bonus} ₽"
                             await bot.send_message(user, msg)
                             # await bot.send_message(CODER, f"{user}\n{msg}")
 
