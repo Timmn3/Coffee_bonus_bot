@@ -84,10 +84,10 @@ class BonusUpdater:
                 await change_last_time(user_id, now_str)
                 await asyncio.sleep(30)
 
-        except Exception:
-            logger.exception("Ошибка при обновлении бонусных данных")
+        except Exception as e:
+            logger.exception(f"Ошибка извлечения бонусных данных {e}")
             await change_last_time(user_id, format_now())
-            await bot.send_message(CODER, "❌ Ошибка извлечения бонусных данных")
+            await bot.send_message(CODER, f"❌ Ошибка извлечения бонусных данных {e}")
 
 
 async def start_user():
