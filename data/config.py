@@ -32,3 +32,6 @@ SEND_PAYMENT_REMINDER = os.getenv('SEND_PAYMENT_REMINDER', 'True').lower() in ('
 
 # Номер карты для абонплаты
 PAYMENT_CARD = os.getenv('PAYMENT_CARD')
+
+# Telegram канал
+CHANEL = os.getenv('CHANEL')
