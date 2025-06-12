@@ -2,7 +2,8 @@ from aiogram import types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from loader import dp
-from utils.db_api.users_commands import get_bonus, get_card_number_by_user_id, get_name_cards
+from utils.db_api.users_commands import get_bonus, get_card_number_by_user_id, get_name_cards, get_user_by_bonus_id, \
+    set_bonus_account_id
 from keyboards.inline.ikb_cards import get_card_selection_keyboard
 
 
@@ -10,7 +11,7 @@ from keyboards.inline.ikb_cards import get_card_selection_keyboard
 async def my_bonuses(message: types.Message):
     user_id = message.from_user.id
     card_numbers = await get_card_number_by_user_id(user_id)
-    bonus = await get_bonus(user_id, card_numbers)
+
     if not card_numbers or card_numbers == '0':
         await message.answer('У вас нет зарегистрированных карт.')
         return
@@ -29,6 +30,7 @@ async def my_bonuses(message: types.Message):
 
         await message.answer("Выберите карту для просмотра бонусов:", reply_markup=keyboard)
     else:
+        bonus = await get_bonus(user_id, card_numbers)
         if bonus:
             await message.answer(f'У Вас {bonus} бонусов✅\n'
                                  f'<b>1 бонус = 1 рублю!</b>\n'
@@ -58,3 +60,19 @@ async def process_callback_card(callback_query: types.CallbackQuery):
 async def handle_bonuses_button(message: types.Message):
     await my_bonuses(message)
 
+
+@dp.callback_query_handler(lambda c: c.data.startswith("bind_bonus:"))
+async def bind_bonus_id(call: types.CallbackQuery):
+    bonus_id = int(call.data.split(":")[1])
+    user_id = call.from_user.id
+
+    exists = await get_user_by_bonus_id(bonus_id)
+    if exists:
+        await call.message.edit_text("❌ Этот бонусный аккаунт уже привязан к другому пользователю.")
+        return
+
+    success = await set_bonus_account_id(user_id, bonus_id)
+    if success:
+        await call.message.edit_text("✅ Бонусный аккаунт успешно привязан! Вы будете получать корректные бонусы.")
+    else:
+        await call.message.edit_text("⚠️ Не удалось привязать бонусный аккаунт. Попробуйте позже.")

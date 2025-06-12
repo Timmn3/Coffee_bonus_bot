@@ -12,12 +12,6 @@ from data.config import ADMIN_IE
 from utils.db_api.users_commands import get_user_id_by_card_number, get_all_user_ids
 
 
-@dp.message_handler(IsPrivate(), text='/test', chat_id=ADMIN_IE)
-async def start_mailing(message: types.Message):
-    await message.answer(f'test')
-    print(await get_user_id_by_card_number('22****7194'))
-
-
 @dp.message_handler(IsPrivate(), text='/mailing', chat_id=ADMIN_IE)
 async def start_mailing(message: types.Message):
     await message.answer(f'Введите текст рассылки:')

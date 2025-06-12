@@ -17,5 +17,6 @@ class Users(TimedBaseModel):
     bonus = Column(JSON)
     number_ie = Column(BigInteger)
     sms_status = Column(Boolean)
+    bonus_account_id = Column(BigInteger, unique=True, nullable=True)
 
     query: sql.select

@@ -1,19 +1,34 @@
+import aiohttp
 from asyncpg import UniqueViolationError
 from loguru import logger
 
+from loader import bot
 from utils.db_api.db_gino import db
 from utils.db_api.shemas.users import Users
 
 
-async def add_user(user_id: int, tg_first_name: str, tg_last_name: str, name: str, card_number: str, phone_number: str,
-                   status: str, bonus: float, number_ie: int, sms_status: bool):
+async def add_user(user_id: int, tg_first_name: str, tg_last_name: str, name: str, card_number: str,
+                   phone_number: str, status: str, bonus: dict, number_ie: int, sms_status: bool,
+                   name_cards: dict = None, bonus_account_id: int = None):
     try:
-        user = Users(user_id=user_id, tg_first_name=tg_first_name, tg_last_name=tg_last_name,
-                     name=name, card_number=card_number, phone_number=phone_number,
-                     status=status, bonus=bonus, number_ie=number_ie, sms_status=sms_status)
+        user = Users(
+            user_id=user_id,
+            tg_first_name=tg_first_name,
+            tg_last_name=tg_last_name,
+            name=name,
+            card_number=card_number,
+            name_cards=name_cards or {},
+            phone_number=phone_number,
+            status=status,
+            bonus=bonus,
+            number_ie=number_ie,
+            sms_status=sms_status,
+            bonus_account_id=bonus_account_id
+        )
         await user.create()
     except UniqueViolationError:
         logger.exception('Ошибка при добавлении пользователя')
+
 
 
 async def get_all_user_ids():
@@ -308,7 +323,7 @@ async def rename_card_number(user_id: int, old_card_number: str, new_card_number
 
 
 import requests
-from data.config import ADMIN_IE
+from data.config import ADMIN_IE, CODER
 from utils.db_api.ie_commands import get_user_data
 
 async def get_bonus_api(card_number: str) -> float:
@@ -330,20 +345,75 @@ async def get_bonus_api(card_number: str) -> float:
         )
 
         data = resp.json()
-        if data.get('success') and data['items']:
-            balance_kopecks = data['items'][0]['balance']
-            balance_rub = balance_kopecks / 100
+        if data.get('success'):
+            if data['items']:
+                balance_kopecks = data['items'][0]['balance']
+                balance_rub = balance_kopecks / 100
 
-            # 🔄 Сохраняем в БД
-            user_id = await get_user_id_by_card_number(card_number)
-            if user_id:
-                await update_bonus(user_id, card_number, balance_rub)
+                # 🔄 Сохраняем в БД
+                user_id = await get_user_id_by_card_number(card_number)
+                if user_id:
+                    await update_bonus(user_id, card_number, balance_rub)
 
-            return balance_rub
+                return balance_rub
+            else:
+                # нет данных по бонусам
+                return 0.0
         else:
-            logger.warning(f"API вернул ошибку для карты {card_number}: {data}")
+            text = f"❌ API вернул неуспешный ответ для карты {card_number}: {data}"
+            logger.warning(text)
+            await bot.send_message(chat_id=CODER, text=text)
             return 0.0
     except Exception as e:
-        logger.exception(f"Ошибка при запросе бонусов через API для {card_number}: {e}")
+        text = f"Ошибка при запросе бонусов через API для {card_number}: {e}"
+        logger.exception(text)
+        await bot.send_message(chat_id=CODER, text=text)
         return 0.0
 
+
+# Получить bonus_account_id по user_id
+async def get_bonus_account_id(user_id: int):
+    try:
+        user = await Users.query.where(Users.user_id == user_id).gino.first()
+        return user.bonus_account_id if user else None
+    except Exception as e:
+        logger.exception(f'Ошибка при получении bonus_account_id для user_id={user_id}: {e}')
+        return None
+
+# Установить bonus_account_id пользователю
+async def set_bonus_account_id(user_id: int, bonus_id: int):
+    try:
+        user = await Users.query.where(Users.user_id == user_id).gino.first()
+        if user:
+            await user.update(bonus_account_id=bonus_id).apply()
+            logger.info(f"Назначен bonus_account_id={bonus_id} для user_id={user_id}")
+            return True
+        return False
+    except Exception as e:
+        logger.exception(f'Ошибка при установке bonus_account_id={bonus_id} для user_id={user_id}: {e}')
+        return False
+
+# Получить user_id по bonus_account_id (для проверки, не занят ли ID)
+async def get_user_by_bonus_id(bonus_id: int):
+    try:
+        user = await Users.query.where(Users.bonus_account_id == bonus_id).gino.first()
+        return user.user_id if user else None
+    except Exception as e:
+        logger.exception(f'Ошибка при поиске user_id по bonus_account_id={bonus_id}: {e}')
+        return None
+
+
+async def fetch_bonus_accounts_by_card(token: str, card_number: str):
+    url = "https://api.vendista.ru:99/bonusaccounts"
+    async with aiohttp.ClientSession() as session:
+        params = {
+            "token": token,
+            "OrderByColumn": 3,
+            "OrderDesc": 'true',
+            "FilterText": card_number
+        }
+        async with session.get(url, params=params) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                return data.get("items", [])
+            return []

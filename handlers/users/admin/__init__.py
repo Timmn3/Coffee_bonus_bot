@@ -1,1 +1,1 @@
-from .bot_mailing import dp
+from .test import dp

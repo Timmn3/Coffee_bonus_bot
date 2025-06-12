@@ -1,16 +1,17 @@
-""" Регистрация нового автомата """
-
 import re
 from aiogram import types
 from aiogram.dispatcher import FSMContext
-from keyboards.default import cancel_registration, kb_sms, kb_main
+
+from utils.db_api.ie_commands import get_user_data
+from utils.db_api.users_commands import set_card_name, get_user_by_bonus_id, fetch_bonus_accounts_by_card
+from data.config import ADMIN_IE
+from keyboards.default import cancel_registration, kb_main
 from loader import dp
 from states import Registration
-from utils.db_api.ie_commands import get_sms_status_ie
 from utils.db_api.users_commands import update_card_number, update_phone_number, update_sms_status, get_number_ie, \
     get_card_number_by_user_id
 from utils.notify_admins import new_user_registration
-
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 @dp.message_handler(text='Отменить регистрацию')
 async def cast(message: types.Message, state: FSMContext):
@@ -55,29 +56,56 @@ async def get_card_name_reg(message: types.Message, state: FSMContext):
     data = await state.get_data()
     number = data.get("card_number")
 
-    if validate_number(number):
-        from utils.db_api.users_commands import update_card_number, set_card_name
-
-        await update_card_number(user_id, number)
-        await set_card_name(user_id, number, name)
-
-        await state.finish()
-
-        user_id_ie = await get_number_ie(message.from_user.id)
-        if await get_sms_status_ie(user_id_ie):
-            await message.answer('👍Отлично! Хотите получать СМС уведомления?', reply_markup=kb_sms)
-        else:
-            await message.answer(
-                '👍Отлично! Регистрация завершена, теперь вы будете получать уведомления о балансе бонусов в Telegram боте!📲\n'
-                f'<b>1 бонус = 1 рублю!</b>\nВы можете выбрать напиток и приложить карту как обычно к терминалу!\n'
-                f'При достаточном наличии бонусов деньги не списываются и у Вас будет написано <b>"бесплатная продажа"!</b>'
-            )
-            await new_user_registration(dp=dp, username=message.from_user.username)
-
-    else:
+    if not validate_number(number):
         await message.answer('Ошибка: номер карты недействителен, попробуйте снова с /register')
         await state.finish()
+        return
 
+    await update_card_number(user_id, number)
+    await set_card_name(user_id, number, name)
+
+    await state.finish()
+
+    from utils.db_api.ie_commands import get_user_data
+    from utils.db_api.users_commands import fetch_bonus_accounts_by_card, get_user_by_bonus_id
+    from data.config import ADMIN_IE
+
+    user_data = await get_user_data(ADMIN_IE)
+    token = user_data["token"]
+
+    bonus_items = await fetch_bonus_accounts_by_card(token, number)
+    if not bonus_items:
+        await message.answer(
+            "🔸 Бонусы пока не обнаружены.\n\n"
+            "✅ Совершите покупку на кассе или терминале, чтобы бонусная карта активировалась.\n"
+            "После этого вы сможете воспользоваться всеми возможностями бота."
+        )
+        return
+
+    keyboard = InlineKeyboardMarkup(row_width=1)
+    options = 0
+    for item in bonus_items:
+        bonus_id = item["id"]
+        already_used = await get_user_by_bonus_id(bonus_id)
+        if already_used:
+            continue
+        balance = item["balance"] / 100
+        keyboard.add(
+            InlineKeyboardButton(
+                text=f"{item['card_number']} — {balance:.2f} ₽",
+                callback_data=f"bind_bonus:{bonus_id}"
+            )
+        )
+        options += 1
+
+    if options:
+        await message.answer(
+            "🧾 Мы нашли несколько бонусных карт, подходящих под ваш номер.\n"
+            "Пожалуйста, выберите свою, сверяя баланс с терминалом оплаты:",
+            reply_markup=keyboard
+        )
+    else:
+        await message.answer("❗️Все найденные бонусные ID уже привязаны к другим пользователям.")
 
 
 def validate_number(number):

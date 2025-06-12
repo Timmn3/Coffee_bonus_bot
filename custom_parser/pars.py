@@ -53,21 +53,37 @@ class BonusUpdater:
                 return []
 
     async def process_user_data(self, user_data: dict):
+        from utils.db_api.users_commands import get_bonus_account_id, set_bonus_account_id, get_user_by_bonus_id
         user_id = user_data["user_id"]
-
 
         try:
             while True:
                 now_str = format_now()
                 last_check = await get_last_time(user_id)
-                # last_check = "02.06.2025 00:38:33"
 
-                items = await self.fetch_data()
+                bonus_account_id = await get_bonus_account_id(user_id)
+
+                items = []
+
+                if bonus_account_id:
+                    # 🔹 Получаем транзакции по ID
+                    url = f"{API_URL}/{bonus_account_id}/transactions"
+                    async with aiohttp.ClientSession() as session:
+                        params = {"token": self.token}
+                        async with session.get(url, params=params) as resp:
+                            if resp.status == 200:
+                                items = await resp.json()
+                            else:
+                                logger.warning(f"Ошибка при запросе транзакций ID {bonus_account_id}: {resp.status}")
+                else:
+                    # 🔸 Старый способ: получаем список карт и бонусов
+                    items = await self.fetch_data()
 
                 for item in items:
                     card_number = item["card_number"]
                     balance = item["balance"]
-                    sale_time_raw = item["last_change_time"]
+                    sale_time_raw = item.get("last_change_time") or item.get("sale_time")  # зависит от эндпоинта
+                    bonus_id = item.get("id")  # только если нет в БД
 
                     sale_time = await parse_iso_datetime(sale_time_raw)
 
@@ -79,7 +95,12 @@ class BonusUpdater:
                             card_name = await get_card_name(user, card_number)
                             msg = f"💳 <b>{card_name}</b> — {card_number}\n💰 Бонусы: {bonus} ₽"
                             await bot.send_message(user, msg)
-                            # await bot.send_message(CODER, f"{user}\n{msg}")
+
+                            # 🔹 Привязка bonus_account_id при отсутствии
+                            if not bonus_account_id and bonus_id:
+                                exists = await get_user_by_bonus_id(bonus_id)
+                                if not exists:
+                                    await set_bonus_account_id(user, bonus_id)
 
                 await change_last_time(user_id, now_str)
                 await asyncio.sleep(30)
