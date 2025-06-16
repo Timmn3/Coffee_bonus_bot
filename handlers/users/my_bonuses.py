@@ -5,7 +5,7 @@
 import aiohttp
 from aiogram import types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
+from loguru import logger
 from loader import dp
 from utils.db_api.cards_commands import get_user_cards, get_card_by_number, update_bonus
 from utils.db_api.bonus_commands import fetch_bonus_accounts_by_card, get_user_by_bonus_id, set_bonus_account_id
@@ -74,6 +74,7 @@ async def bind_bonus_id(call: types.CallbackQuery):
     Привязка бонусного аккаунта к пользователю.
     """
     try:
+        logger.info(f"data: {call.data}")
         _, bonus_id_str, card_number = call.data.split(":")
         bonus_id = int(bonus_id_str)
     except ValueError:
@@ -92,9 +93,6 @@ async def bind_bonus_id(call: types.CallbackQuery):
         await call.message.edit_text("✅ Бонусный аккаунт успешно привязан! Вы будете получать корректные бонусы.")
     elif success is False:
         await call.message.edit_text("⚠️ Не удалось привязать бонусный аккаунт. Попробуйте позже.")
-    # Если уже привязано — ничего не пишем
-
-
 
 
 async def get_bonus_api(card_number: str) -> float:

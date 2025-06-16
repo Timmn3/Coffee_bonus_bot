@@ -28,30 +28,49 @@ async def command_start(message: types.Message):
     try:
         user = await select_user(message.from_user.id)
 
+        if user is None:
+            # Если пользователь не найден, создаем нового
+            await add_user(
+                user_id=message.from_user.id,
+                tg_first_name=message.from_user.first_name,
+                tg_last_name=message.from_user.last_name,
+                name=message.from_user.username,
+                phone_number='0',
+                status='active',
+                bonus={},
+                number_ie=10,
+                sms_status=False
+            )
+            await message.answer(
+                f'Добро пожаловать, {message.from_user.first_name}!\n'
+                f'Для продолжения нажмите "Регистрация"',
+                reply_markup=kb_register_machine
+            )
+            return
+
         if user.status == 'active':
             await message.answer(f'Привет {user.tg_first_name}!\n', reply_markup=kb_main)
 
             # 🔍 Проверяем привязку бонусного аккаунта
-            from utils.db_api.cards_commands import get_user_cards  # работа с новой таблицей Cards
+            from utils.db_api.cards_commands import get_user_cards
             from utils.db_api.bonus_commands import fetch_bonus_accounts_by_card
 
-            user_cards = await get_user_cards(user.user_id)  # получаем все карты пользователя
+            user_cards = await get_user_cards(user.user_id)
 
-            if user_cards:  # если есть хотя бы одна карта
-                user_data = await get_user_data(ADMIN_IE)  # получаем данные API для парсинга бонусов
+            if user_cards:
+                user_data = await get_user_data(ADMIN_IE)
                 token = user_data["token"]
 
                 all_items = []
                 for card in user_cards:
-                    card_number = card['card_number']
-                    matches = await fetch_bonus_accounts_by_card(token, card_number)
+                    matches = await fetch_bonus_accounts_by_card(token, card['card_number'])
                     all_items.extend(matches)
 
                 keyboard = InlineKeyboardMarkup(row_width=1)
                 options = 0
                 for item in all_items:
                     b_id = item["id"]
-                    already = await get_user_by_bonus_id(b_id)  # проверяем не занят ли бонусный ID другим пользователем
+                    already = await get_user_by_bonus_id(b_id)
                     if already:
                         continue
                     bal = item["balance"] / 100
@@ -64,15 +83,12 @@ async def command_start(message: types.Message):
                     options += 1
 
                 if options > 0:
-                    # проверяем: есть ли у пользователя хоть одна карта без привязанного бонусного ID
                     from utils.db_api.cards_commands import get_card_by_number
                     unlinked_cards = []
-
                     for item in all_items:
-                        card_number = item["card_number"]
-                        card = await get_card_by_number(card_number)
+                        card = await get_card_by_number(item["card_number"])
                         if card and not card.bonus_account_id:
-                            unlinked_cards.append(card_number)
+                            unlinked_cards.append(item["card_number"])
 
                     if unlinked_cards:
                         await message.answer(
@@ -87,22 +103,4 @@ async def command_start(message: types.Message):
 
     except Exception as e:
         logger.exception(f"Ошибка в обработчике /start: {e}")
-
-        # Регистрация нового пользователя (карты теперь хранятся отдельно в таблице Cards)
-        await add_user(
-            user_id=message.from_user.id,
-            tg_first_name=message.from_user.first_name,
-            tg_last_name=message.from_user.last_name,
-            name=message.from_user.username,
-            phone_number='0',
-            status='active',
-            bonus={},  # JSON
-            number_ie=10,
-            sms_status=False
-        )
-
-        await message.answer(
-            f'Добро пожаловать, {message.from_user.first_name}!\n'
-            f'Для продолжения нажмите "Регистрация"',
-            reply_markup=kb_register_machine
-        )
+        await message.answer("Произошла ошибка при обработке команды. Пожалуйста, попробуйте позже.")

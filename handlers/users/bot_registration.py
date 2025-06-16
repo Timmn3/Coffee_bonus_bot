@@ -114,7 +114,7 @@ async def get_card_name_reg(message: types.Message, state: FSMContext):
         keyboard.add(
             InlineKeyboardButton(
                 text=f"{item['card_number']} — {balance:.2f} ₽",
-                callback_data=f"bind_bonus:{bonus_id}"
+                callback_data=f"bind_bonus:{bonus_id}:{number}"
             )
         )
         options += 1

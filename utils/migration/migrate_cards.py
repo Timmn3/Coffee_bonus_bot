@@ -19,25 +19,21 @@ async def migrate_user_cards():
     for user in users:
         try:
             if not user.card_number or user.card_number == '0':
-                logger.debug(f"Пользователь {user.user_id} не имеет карт")
                 continue
 
             # Разбираем номера карт
             card_numbers = [c.strip() for c in user.card_number.split('\n') if c.strip()]
             name_cards = user.name_cards or {}
 
-            logger.info(f"У пользователя {user.user_id} найдено {len(card_numbers)} карт")
-
             for card in card_numbers:
                 card_name = name_cards.get(card, '')  # Получаем имя карты из JSON
-                bonus_account_id = user.bonus_account_id if card == user.card_number else None
 
                 # Создаем запись в таблице cards
                 await Cards.create(
                     user_id=user.user_id,
                     card_number=card,
                     card_name=card_name,
-                    bonus_account_id=bonus_account_id,
+                    bonus_account_id=None,
                     created_at=datetime.now(),
                     active=True,
                     bonus=0
@@ -45,7 +41,7 @@ async def migrate_user_cards():
                 logger.debug(f"Сохранена карта {card} для пользователя {user.user_id}")
 
         except Exception as e:
-            logger.exception(f"Ошибка при обработке пользователя {user.user_id}: {e}")
+            logger.exception(f"Ошибка при обработке пользователя {user.user_id}:")
             continue
 
     logger.info("✅ Миграция завершена")

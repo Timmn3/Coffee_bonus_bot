@@ -1,11 +1,11 @@
-from data.config import TABLE_CARDS
+from data.config import TABLE_CARDS, TABLE_NAME
 from utils.db_api.db_gino import BaseModel, db
 
 class Cards(BaseModel):
     __tablename__ = TABLE_CARDS
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.BigInteger, db.ForeignKey('users.user_id'))
+    user_id = db.Column(db.BigInteger, db.ForeignKey(f'{TABLE_NAME}.user_id'))
     card_number = db.Column(db.String(50))
     card_name = db.Column(db.String(100))
     bonus_account_id = db.Column(db.BigInteger, unique=True, nullable=True)
