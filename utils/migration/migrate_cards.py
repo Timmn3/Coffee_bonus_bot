@@ -39,7 +39,8 @@ async def migrate_user_cards():
                     card_name=card_name,
                     bonus_account_id=bonus_account_id,
                     created_at=datetime.now(),
-                    active=True
+                    active=True,
+                    bonus=0
                 )
                 logger.debug(f"Сохранена карта {card} для пользователя {user.user_id}")
 

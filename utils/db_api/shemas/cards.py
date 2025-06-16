@@ -1,7 +1,8 @@
+from data.config import TABLE_CARDS
 from utils.db_api.db_gino import BaseModel, db
 
 class Cards(BaseModel):
-    __tablename__ = 'cards'
+    __tablename__ = TABLE_CARDS
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.user_id'))
