@@ -10,3 +10,4 @@ class Cards(BaseModel):
     bonus_account_id = db.Column(db.BigInteger, unique=True, nullable=True)
     created_at = db.Column(db.DateTime, default=db.func.now())
     active = db.Column(db.Boolean, default=True)
+    bonus = db.Column(db.Float, default=0.0)

@@ -6,14 +6,7 @@ from datetime import datetime
 from utils.db_api.shemas.cards import Cards
 # Импортируй свои модели
 from utils.db_api.shemas.users import Users
-
-
-# Настройка логгирования
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 async def migrate_user_cards():

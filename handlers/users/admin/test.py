@@ -1,9 +1,9 @@
 from data.config import CODER
 from filters.admins import Admins
+from handlers.users.my_bonuses import get_bonus_api
 from loader import dp, bot
 from aiogram import types
 
-from utils.db_api.users_commands import get_bonus_api
 from utils.migration.migrate_cards import migrate_user_cards
 
 
