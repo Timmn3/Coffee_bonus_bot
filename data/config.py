@@ -36,3 +36,6 @@ PAYMENT_CARD = os.getenv('PAYMENT_CARD')
 
 # Telegram канал
 CHANEL = os.getenv('CHANEL')
+
+# Путь для логов
+LOG_PATH = os.getenv('LOG_PATH')

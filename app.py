@@ -9,14 +9,14 @@ load_dotenv(dotenv_path=env_path)
 import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from custom_parser.pars import start_user
-from data.config import REMINDER_DAY, REMINDER_HOUR, REMINDER_MINUTE, SEND_PAYMENT_REMINDER
+from data.config import REMINDER_DAY, REMINDER_HOUR, REMINDER_MINUTE, SEND_PAYMENT_REMINDER, LOG_PATH
 from utils.notify_admins import send_monthly_payment_reminder
 
 
 
 async def on_startup(dp):
     from loguru import logger
-    logger.add("logs/loguru.log",
+    logger.add(f"logs/{LOG_PATH}/loguru.log",
                format="{level: <8} {time:YYYY.MM.DD HH:mm:ss} {module}:{function}:{line} - {message}",
                level="DEBUG",
                rotation="5 MB",
