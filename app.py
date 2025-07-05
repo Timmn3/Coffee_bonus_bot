@@ -41,14 +41,14 @@ async def on_startup(dp):
 
     # импортирует функцию, которая отправляет сообщение о запуске бота всем администраторам
     from utils.notify_admins import on_startup_notufy
-    await on_startup_notufy(dp)
+    # await on_startup_notufy(dp)
 
     # импортирует функцию, которая устанавливает команды бота
     from utils.set_bot_commands import set_default_commands
     await set_default_commands(dp)
 
     # выдает в консоль бот запущен
-    # logger.info("Бот запущен")
+    logger.info("Бот запущен")
     asyncio.create_task(start_user())
 
     # Инициализация APScheduler
