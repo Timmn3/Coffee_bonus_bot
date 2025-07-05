@@ -109,7 +109,7 @@ class BonusUpdater:
 
 
                 await change_last_time(user_id, now_str)
-                await asyncio.sleep(30)
+                await asyncio.sleep(60)
 
         except Exception as e:
             logger.exception(f"Ошибка извлечения бонусных данных {e}")
