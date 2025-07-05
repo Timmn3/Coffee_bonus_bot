@@ -48,7 +48,7 @@ async def on_startup(dp):
     await set_default_commands(dp)
 
     # выдает в консоль бот запущен
-    logger.info("Бот запущен")
+    # logger.info("Бот запущен")
     asyncio.create_task(start_user())
 
     # Инициализация APScheduler
