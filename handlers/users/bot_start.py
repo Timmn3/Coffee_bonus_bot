@@ -15,6 +15,8 @@ from keyboards.default import kb_main, kb_register_machine
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from loguru import logger
 
+from utils.notify_admins import new_user_registration
+
 
 @dp.message_handler(IsPrivate(), CommandStart())
 async def command_start(message: types.Message):
@@ -46,6 +48,9 @@ async def command_start(message: types.Message):
                 f'Для продолжения нажмите "Регистрация"',
                 reply_markup=kb_register_machine
             )
+            # ✅ уведомляем администраторов о новом пользователе
+            safe_username = message.from_user.username or f"id{message.from_user.id}"
+            await new_user_registration(dp=dp, username=safe_username)
             return
 
         if user.status == 'active':

@@ -8,7 +8,7 @@ ADMIN_IE = int(os.getenv('ADMIN_IE'))
 USER_HELP = str(os.getenv('USER_HELP'))
 
 # список администраторов бота
-CODER = os.getenv('CODER')
+CODER = int(os.getenv('CODER'))
 
 ip = os.getenv('IP')
 PGUSER = str(os.getenv('PGUSER'))
