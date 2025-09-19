@@ -37,17 +37,22 @@ async def mailing_text(message: types.Message, state: FSMContext):
 @dp.callback_query_handler(text='next', state=bot_mailing.state, chat_id=ADMIN_IE)
 async def start(call: types.CallbackQuery, state: FSMContext):
     users = await get_all_user_ids()
-    data = await state.get_data()  # создаем переменную data из которой достаем ответы пользователя
+    data = await state.get_data()  # достаём данные от пользователя
     text = data.get('text')
     await state.finish()
     await call.message.delete()
+
+    sent_count = 0  # счётчик успешных отправок
     for user in users:
         try:
             await dp.bot.send_message(chat_id=user, text=text)
-            await sleep(0.25)  # 4 сообщения в секунду
+            sent_count += 1
+            await sleep(0.25)  # ограничение: 4 сообщения в секунду
         except Exception:
             pass
-    await call.message.answer('Рассылка выполнена!')
+
+    await call.message.answer(f'Рассылка выполнена!\n✅ Доставлено {sent_count} пользователям из {len(users)}')
+
 
 
 @dp.callback_query_handler(text='add_foto', state=bot_mailing.state, chat_id=ADMIN_IE)
