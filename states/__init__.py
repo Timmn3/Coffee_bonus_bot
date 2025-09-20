@@ -4,4 +4,5 @@ from .registration import Registration, Accept
 from .change_data import ChangeData
 from .change_user_data import ChangeUserData
 from .delete import Delete
+from .poll import PollCreation
 
