@@ -4,6 +4,7 @@ import os
 BOT_TOKEN = str(os.getenv('BOT_TOKEN'))
 TABLE_NAME = str(os.getenv('TABLE_NAME'))
 TABLE_CARDS = str(os.getenv('TABLE_CARDS'))
+TABLE_POLLS = str(os.getenv('TABLE_POLLS', 'polls'))
 ADMIN_IE = int(os.getenv('ADMIN_IE'))
 USER_HELP = str(os.getenv('USER_HELP'))
 
