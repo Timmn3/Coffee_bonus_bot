@@ -16,16 +16,14 @@ from loader import dp
 from states import PollCreation
 from utils.db_api.poll_commands import (
     create_poll,
-    update_poll_admin_message,
     get_poll,
     increment_vote,
-    build_stats_text,
 )
 from utils.db_api.users_commands import get_all_user_ids
 
 
 def _format_poll_message(question: str, options: List[str]) -> str:
-    """Форматирование текста опроса для отправки пользователям (без статистики)."""
+    """Форматирование текста опроса для отправки пользователям."""
     lines = [f'<b>{question}</b>']
     lines.extend(f'{index}. {option}' for index, option in enumerate(options, start=1))
     return '\n'.join(lines)
@@ -123,7 +121,7 @@ async def poll_cancel(call: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query_handler(text=POLL_SEND_CALLBACK, state=PollCreation.confirm, chat_id=ADMIN_IE)
 async def poll_send(call: types.CallbackQuery, state: FSMContext):
-    """Сохранение опроса в БД и массовая рассылка пользователям."""
+    """Сохранение опроса в БД и массовая рассылка пользователям (включая админов)."""
     data = await state.get_data()
     question = data.get('question')
     options = data.get('options', [])
@@ -146,25 +144,19 @@ async def poll_send(call: types.CallbackQuery, state: FSMContext):
         try:
             await dp.bot.send_message(chat_id=user_id, text=poll_text, reply_markup=vote_keyboard)
             sent += 1
-            await asyncio.sleep(0.25)  # не спамим API
+            await asyncio.sleep(0.25)
         except Exception:
             continue
 
-    # Сообщение админу с такой же клавиатурой (и запомним его id)
-    admin_message = await dp.bot.send_message(
-        chat_id=call.message.chat.id,
-        text=poll_text,
-        reply_markup=vote_keyboard
-    )
-    await update_poll_admin_message(poll.id, admin_message.chat.id, admin_message.message_id)
-
     await state.finish()
-    await call.message.edit_reply_markup()
+    try:
+        await call.message.edit_reply_markup()
+    except Exception:
+        pass
+
     await call.answer('Опрос разослан!')
     await call.message.answer(f'Опрос отправлен {sent} пользователям из {len(users)}.')
 
-
-# ====== НОВОЕ: обработчик голосования пользователей ====== #
 
 @dp.callback_query_handler(lambda c: c.data and c.data.startswith('poll_vote:'))
 async def poll_vote_handler(call: types.CallbackQuery):
@@ -182,36 +174,16 @@ async def poll_vote_handler(call: types.CallbackQuery):
         poll_id = int(poll_id_str)
         option_idx = int(option_idx_str)
 
-        # Пробуем инкрементировать голос
         updated = await increment_vote(poll_id, option_idx)
         if updated is None:
             await call.answer('Ошибка сохранения голоса.', show_alert=True)
             return
 
-        # Обновим сообщение пользователя: уберём клавиатуру и подтвердим выбор
         try:
-            await call.message.edit_reply_markup()  # убираем кнопки => исключаем повторные клики в этом сообщении
+            await call.message.edit_reply_markup()  # убираем кнопки после клика
         except Exception:
-            # сообщение может быть уже отредактировано/удалено — игнорируем
             pass
 
         await call.answer('Ваш голос засчитан!')
-
-        # Если знаем сообщение администратора — обновим ему статистику
-        if updated.admin_chat_id and updated.admin_message_id:
-            stats_text, _ = build_stats_text(updated.question, updated.options, updated.votes)
-            try:
-                await dp.bot.edit_message_text(
-                    chat_id=updated.admin_chat_id,
-                    message_id=updated.admin_message_id,
-                    text=stats_text,
-                    reply_markup=build_poll_vote_kb(updated.id, updated.options),  # оставим теми же (админ может тестово жать)
-                    parse_mode='HTML'
-                )
-            except Exception:
-                # Возможно, текст совпал — тогда просто обновим клавиатуру/проигнорируем
-                pass
-
-    except Exception as e:
-        # Логически отвечаем пользователю, даже если что-то пошло не так
+    except Exception:
         await call.answer('Произошла ошибка. Попробуйте ещё раз.', show_alert=False)
