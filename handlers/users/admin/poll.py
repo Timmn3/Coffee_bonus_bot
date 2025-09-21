@@ -14,11 +14,18 @@ from keyboards.inline import (
 )
 from loader import dp
 from states import PollCreation
-from utils.db_api.poll_commands import create_poll, update_poll_admin_message
+from utils.db_api.poll_commands import (
+    create_poll,
+    update_poll_admin_message,
+    get_poll,
+    increment_vote,
+    build_stats_text,
+)
 from utils.db_api.users_commands import get_all_user_ids
 
 
 def _format_poll_message(question: str, options: List[str]) -> str:
+    """Форматирование текста опроса для отправки пользователям (без статистики)."""
     lines = [f'<b>{question}</b>']
     lines.extend(f'{index}. {option}' for index, option in enumerate(options, start=1))
     return '\n'.join(lines)
@@ -26,6 +33,7 @@ def _format_poll_message(question: str, options: List[str]) -> str:
 
 @dp.message_handler(commands=['poll'], chat_id=ADMIN_IE)
 async def poll_start(message: types.Message, state: FSMContext):
+    """Старт создания опроса администратором."""
     await state.finish()
     await PollCreation.question.set()
     await state.update_data(options=[])
@@ -37,6 +45,7 @@ async def poll_start(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=PollCreation.question, chat_id=ADMIN_IE)
 async def poll_set_question(message: types.Message, state: FSMContext):
+    """Сохранить вопрос и перейти к вводу вариантов."""
     text = (message.text or '').strip()
     if text.lower() == 'отмена':
         await state.finish()
@@ -57,6 +66,7 @@ async def poll_set_question(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=PollCreation.option, chat_id=ADMIN_IE)
 async def poll_collect_options(message: types.Message, state: FSMContext):
+    """Сбор вариантов ответа."""
     text = (message.text or '').strip()
     lower_text = text.lower()
 
@@ -95,6 +105,7 @@ async def poll_collect_options(message: types.Message, state: FSMContext):
 
 @dp.callback_query_handler(text=POLL_ADD_OPTION_CALLBACK, state=PollCreation.confirm, chat_id=ADMIN_IE)
 async def poll_add_more(call: types.CallbackQuery, state: FSMContext):
+    """Добавить ещё вариант после предпросмотра."""
     await call.answer()
     await call.message.edit_reply_markup()
     await PollCreation.option.set()
@@ -103,6 +114,7 @@ async def poll_add_more(call: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query_handler(text=POLL_CANCEL_CALLBACK, state=PollCreation.confirm, chat_id=ADMIN_IE)
 async def poll_cancel(call: types.CallbackQuery, state: FSMContext):
+    """Отмена создания опроса."""
     await call.answer('Создание опроса отменено.')
     await call.message.edit_reply_markup()
     await state.finish()
@@ -111,6 +123,7 @@ async def poll_cancel(call: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query_handler(text=POLL_SEND_CALLBACK, state=PollCreation.confirm, chat_id=ADMIN_IE)
 async def poll_send(call: types.CallbackQuery, state: FSMContext):
+    """Сохранение опроса в БД и массовая рассылка пользователям."""
     data = await state.get_data()
     question = data.get('question')
     options = data.get('options', [])
@@ -133,10 +146,11 @@ async def poll_send(call: types.CallbackQuery, state: FSMContext):
         try:
             await dp.bot.send_message(chat_id=user_id, text=poll_text, reply_markup=vote_keyboard)
             sent += 1
-            await asyncio.sleep(0.25)
+            await asyncio.sleep(0.25)  # не спамим API
         except Exception:
             continue
 
+    # Сообщение админу с такой же клавиатурой (и запомним его id)
     admin_message = await dp.bot.send_message(
         chat_id=call.message.chat.id,
         text=poll_text,
@@ -148,3 +162,56 @@ async def poll_send(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_reply_markup()
     await call.answer('Опрос разослан!')
     await call.message.answer(f'Опрос отправлен {sent} пользователям из {len(users)}.')
+
+
+# ====== НОВОЕ: обработчик голосования пользователей ====== #
+
+@dp.callback_query_handler(lambda c: c.data and c.data.startswith('poll_vote:'))
+async def poll_vote_handler(call: types.CallbackQuery):
+    """
+    Обработка нажатия варианта ответа пользователем.
+    Формат callback_data: poll_vote:<poll_id>:<option_index>
+    """
+    try:
+        parts = (call.data or '').split(':')
+        if len(parts) != 3:
+            await call.answer('Некорректные данные.', show_alert=True)
+            return
+
+        _, poll_id_str, option_idx_str = parts
+        poll_id = int(poll_id_str)
+        option_idx = int(option_idx_str)
+
+        # Пробуем инкрементировать голос
+        updated = await increment_vote(poll_id, option_idx)
+        if updated is None:
+            await call.answer('Ошибка сохранения голоса.', show_alert=True)
+            return
+
+        # Обновим сообщение пользователя: уберём клавиатуру и подтвердим выбор
+        try:
+            await call.message.edit_reply_markup()  # убираем кнопки => исключаем повторные клики в этом сообщении
+        except Exception:
+            # сообщение может быть уже отредактировано/удалено — игнорируем
+            pass
+
+        await call.answer('Ваш голос засчитан!')
+
+        # Если знаем сообщение администратора — обновим ему статистику
+        if updated.admin_chat_id and updated.admin_message_id:
+            stats_text, _ = build_stats_text(updated.question, updated.options, updated.votes)
+            try:
+                await dp.bot.edit_message_text(
+                    chat_id=updated.admin_chat_id,
+                    message_id=updated.admin_message_id,
+                    text=stats_text,
+                    reply_markup=build_poll_vote_kb(updated.id, updated.options),  # оставим теми же (админ может тестово жать)
+                    parse_mode='HTML'
+                )
+            except Exception:
+                # Возможно, текст совпал — тогда просто обновим клавиатуру/проигнорируем
+                pass
+
+    except Exception as e:
+        # Логически отвечаем пользователю, даже если что-то пошло не так
+        await call.answer('Произошла ошибка. Попробуйте ещё раз.', show_alert=False)
