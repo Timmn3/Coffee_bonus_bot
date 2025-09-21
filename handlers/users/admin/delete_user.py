@@ -11,9 +11,7 @@ class User(StatesGroup):
     id = State()
 
 
-dp.message_handler(Admins(), text='/delete')
-
-
+@dp.message_handler(Admins(), text='/delete')
 async def delete(message: types.Message):
     await message.answer(f'Введите id пользователя:')
     await User.id.set()
