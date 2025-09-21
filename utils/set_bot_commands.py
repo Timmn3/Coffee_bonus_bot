@@ -24,11 +24,14 @@ async def set_default_commands(dp):
     # --- Команды для админов (отдельное меню в их личках) ---
     admin_commands = [
         types.BotCommand('start', 'Старт'),
+        types.BotCommand('register', 'Регистрация'),
+        types.BotCommand('cards', 'Ваши карты'),
+        types.BotCommand('my_bonuses', 'Мои бонусы'),
+        types.BotCommand('telegram_channel', 'Наш телеграм-канал'),
+        types.BotCommand('help', 'Помощь'),
         types.BotCommand('mailing', 'Массовая рассылка'),
         types.BotCommand('poll', 'Создать опрос'),
         types.BotCommand('poll_results', 'Результаты опроса'),
-        types.BotCommand('show_buttons', 'Кнопки управления (run/stop)'),
-        types.BotCommand('help', 'Помощь'),
     ]
 
     admin_ids = {int(ADMIN_IE), int(CODER)}
