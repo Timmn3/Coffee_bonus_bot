@@ -23,6 +23,7 @@ async def set_default_commands(dp):
 
     # --- Команды для админов (отдельное меню в их личках) ---
     admin_commands = [
+        types.BotCommand('start', 'Старт'),
         types.BotCommand('mailing', 'Массовая рассылка'),
         types.BotCommand('poll', 'Создать опрос'),
         types.BotCommand('poll_results', 'Результаты опроса'),
