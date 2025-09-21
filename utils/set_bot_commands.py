@@ -27,7 +27,6 @@ async def set_default_commands(dp):
         types.BotCommand('mailing', 'Массовая рассылка'),
         types.BotCommand('poll', 'Создать опрос'),
         types.BotCommand('poll_results', 'Результаты опроса'),
-        types.BotCommand('delete', 'Удалить пользователя'),
         types.BotCommand('show_buttons', 'Кнопки управления (run/stop)'),
         types.BotCommand('help', 'Помощь'),
     ]
