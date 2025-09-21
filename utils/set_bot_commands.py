@@ -1,6 +1,5 @@
 from aiogram import types
 
-
 async def set_default_commands(dp):
     await dp.bot.set_my_commands([
         types.BotCommand('start', 'Старт'),
@@ -10,8 +9,8 @@ async def set_default_commands(dp):
         types.BotCommand('telegram_channel', 'Наш телеграм-канал'),
         types.BotCommand('mailing', 'Отправить сообщения всем пользователям'),
         types.BotCommand('poll', 'Создать опрос'),
+        types.BotCommand('poll_results', 'Результаты опросов'),
         # types.BotCommand('sms_notifications', 'СМС уведомления'),
         # types.BotCommand('change_phone', 'изменить номер телефона для СМС'),
         types.BotCommand('help', 'Помощь'),
-
     ])
