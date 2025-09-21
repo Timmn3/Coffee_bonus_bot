@@ -130,7 +130,8 @@ async def poll_send(call: types.CallbackQuery, state: FSMContext):
         await call.answer('Недостаточно данных для отправки опроса.', show_alert=True)
         return
 
-    poll = await create_poll(question, options)
+    creator_id = int(call.from_user.id)  # ← владелец опроса
+    poll = await create_poll(question, options, admin_chat_id=creator_id)
     if poll is None:
         await call.answer('Не удалось сохранить опрос. Попробуйте позже.', show_alert=True)
         return
@@ -156,6 +157,7 @@ async def poll_send(call: types.CallbackQuery, state: FSMContext):
 
     await call.answer('Опрос разослан!')
     await call.message.answer(f'Опрос отправлен {sent} пользователям из {len(users)}.')
+
 
 
 @dp.callback_query_handler(lambda c: c.data and c.data.startswith('poll_vote:'))

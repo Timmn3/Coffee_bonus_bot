@@ -1,68 +1,39 @@
-# -*- coding: utf-8 -*-
-"""
-Хендлер для просмотра статистики последнего опроса администратором.
-
-Функции:
-- /poll_results — показать статистику ПОСЛЕДНЕГО опроса текущего админа
-- Кнопка "🔄 Обновить" — обновить статистику этого опроса
-"""
-
 from aiogram import types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
 from data.config import ADMIN_IE, CODER
 from loader import dp
 from utils.db_api.shemas.polls import Polls
 from utils.db_api.poll_commands import build_stats_text, get_poll
 
-# Константа для callback
 POLL_STAT_REFRESH = "poll_stat_refresh"
 
-
 def _is_admin(user_id: int) -> bool:
-    """Проверка прав доступа к админ-командам."""
     return user_id in {int(ADMIN_IE), int(CODER)}
 
-
 def _build_stat_kb(poll_id: int) -> InlineKeyboardMarkup:
-    """Собрать инлайн-клавиатуру для блока статистики опроса."""
     kb = InlineKeyboardMarkup()
-    kb.add(
-        InlineKeyboardButton(text="🔄 Обновить", callback_data=f"{POLL_STAT_REFRESH}:{poll_id}")
-    )
+    kb.add(InlineKeyboardButton(text="🔄 Обновить", callback_data=f"{POLL_STAT_REFRESH}:{poll_id}"))
     return kb
-
 
 @dp.message_handler(commands=["poll_results"])
 async def cmd_poll_results(message: types.Message) -> None:
-    """Показать статистику последнего опроса текущего админа."""
+    """Показать статистику последнего опроса текущего админа (WHERE admin_chat_id = you)."""
     user_id = int(message.from_user.id)
-
     if not _is_admin(user_id):
         await message.answer("⛔ Нет доступа.")
         return
 
-    # Выбираем последний опрос именно этого админа
-    poll = await Polls.query.where(Polls.admin_chat_id == user_id)\
-                            .order_by(Polls.id.desc())\
-                            .gino.first()
-
+    poll = await Polls.query.where(Polls.admin_chat_id == user_id).order_by(Polls.id.desc()).gino.first()
     if not poll:
         await message.answer("Опросов для вашего аккаунта пока нет.")
         return
 
     stats_text, total = build_stats_text(poll.question, poll.options or [], poll.votes or [])
     suffix = f"\n\n<b>Всего голосов:</b> {total}"
-    await message.answer(
-        stats_text + suffix,
-        reply_markup=_build_stat_kb(poll.id),
-        parse_mode="HTML"
-    )
-
+    await message.answer(stats_text + suffix, reply_markup=_build_stat_kb(poll.id), parse_mode="HTML")
 
 @dp.callback_query_handler(lambda c: c.data and c.data.startswith(f"{POLL_STAT_REFRESH}:"))
 async def cb_poll_stat_refresh(call: types.CallbackQuery) -> None:
-    """Обновить статистику последнего опроса."""
     user_id = int(call.from_user.id)
     if not _is_admin(user_id):
         await call.answer("⛔ Нет доступа.", show_alert=True)
@@ -83,11 +54,7 @@ async def cb_poll_stat_refresh(call: types.CallbackQuery) -> None:
     stats_text, total = build_stats_text(poll.question, poll.options or [], poll.votes or [])
     suffix = f"\n\n<b>Всего голосов:</b> {total}"
     try:
-        await call.message.edit_text(
-            stats_text + suffix,
-            reply_markup=_build_stat_kb(poll.id),
-            parse_mode="HTML"
-        )
+        await call.message.edit_text(stats_text + suffix, reply_markup=_build_stat_kb(poll.id), parse_mode="HTML")
         await call.answer("Статистика обновлена.")
     except Exception:
         await call.answer("Актуально.")
