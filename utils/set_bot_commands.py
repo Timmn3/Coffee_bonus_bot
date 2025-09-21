@@ -34,7 +34,7 @@ async def set_default_commands(dp):
         types.BotCommand('poll_results', 'Результаты опроса'),
     ]
 
-    admin_ids = {int(ADMIN_IE), int(CODER)}
+    admin_ids = {int(ADMIN_IE)}
     for admin_id in admin_ids:
         # В приватном чате chat_id == user_id администратора
         await dp.bot.set_my_commands(
