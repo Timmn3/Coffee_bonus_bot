@@ -11,18 +11,21 @@ USER_HELP = str(os.getenv('USER_HELP'))
 # список администраторов бота
 CODER = int(os.getenv('CODER'))
 
-ip = os.getenv('IP')
-PGUSER = str(os.getenv('PGUSER'))
-PGPASSWORD = str(os.getenv('PGPASSWORD'))
-DATABASE = str(os.getenv('DATABASE'))
+# ---------- База данных ----------
+IP = os.getenv('IP', '127.0.0.1').strip()
+PGUSER = str(os.getenv('PGUSER', 'postgres'))
+PGPASSWORD = str(os.getenv('PGPASSWORD', ''))
+DATABASE = str(os.getenv('DATABASE', 'postgres'))
+PGPORT = str(os.getenv('PGPORT', '5432')).strip()
 
-POSTGRES_URI = f'postgresql://{PGUSER}:{PGPASSWORD}@{ip}/{DATABASE}'
+# Строка подключения с портом
+POSTGRES_URI = f'postgresql://{PGUSER}:{PGPASSWORD}@{IP}:{PGPORT}/{DATABASE}'
 
+# ---------- QIWI / Прочее ----------
 QIWI_TOKEN = os.getenv('QIWI')
 WALLET_QIWI = os.getenv('WALLET')
 QIWI_PUB_KEY = os.getenv('QIWI_PUB_KEY')
 QIWI_PRIV_KEY = os.getenv('QIWI_PRIV_KEY')
-
 
 # Время напоминания
 REMINDER_DAY = os.getenv('REMINDER_DAY', '2')
