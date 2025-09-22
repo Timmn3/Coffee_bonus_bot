@@ -34,6 +34,7 @@ async def select_user(user_id):
         return user
     except Exception as e:
         logger.exception(f'Ошибка при выборе пользователя: {e}')
+        return None
 
 
 async def db_run_stop(user_id: int, value: bool):
@@ -354,12 +355,18 @@ async def update_report_time(user_id: int, new_report_time: str):
         logger.exception(f'Ошибка обновления report_time для пользователя {user_id}: {e}')
 
 
-async def change_last_time(user_id: int, last_time_new: str):
+async def change_last_time(user_id: int, last_time_new: str) -> bool:
+    """Безопасно обновляет поле last_time для IE; не падает, если записи нет."""
     try:
         user = await select_user(user_id)
+        if not user:
+            logger.warning(f"Пользователь IE user_id={user_id} не найден — пропускаю change_last_time.")
+            return False
         await user.update(last_time=last_time_new).apply()
+        return True
     except Exception as e:
         logger.exception(f'Ошибка при изменении last_time пользователя: {e}')
+        return False
 
 
 async def get_last_time(user_id: int):
@@ -369,7 +376,7 @@ async def get_last_time(user_id: int):
             return user.last_time
         else:
             logger.warning(f"Пользователь с ID {user_id} не найден. Невозможно получить last_time.")
-            return None  # or raise an exception if you prefer
+            return None
     except Exception as e:
         logger.exception(f'Ошибка при получении last_time пользователя: {e}')
-        return None  # or raise an exception if you prefer
+        return None
